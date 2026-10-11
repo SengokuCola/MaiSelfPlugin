@@ -1,0 +1,1470 @@
+{
+  "schema_version": 1,
+  "required_capabilities": [
+    "custom_pages",
+    "file_upload"
+  ],
+  "workspace_title": "自身角色识别",
+  "pages": [
+    {
+      "id": "images",
+      "title": "图片标注",
+      "placement": "workspace",
+      "icon": "database",
+      "description": "上传、标注与管理自身角色图片。",
+      "mode": "custom",
+      "entry": "webui/images.html",
+      "queries": {
+        "pictures": {
+          "api": "self_images",
+          "version": "1",
+          "parameters": {
+            "page": {
+              "type": "integer",
+              "required": false,
+              "minimum": 1
+            },
+            "view": {
+              "type": "string",
+              "required": false,
+              "choices": [
+                "all",
+                "eligible",
+                "excluded",
+                "unlabelled",
+                "errors",
+                "removed"
+              ]
+            },
+            "job_id": {
+              "type": "string",
+              "required": false
+            }
+          }
+        },
+        "form": {
+          "api": "self_training_form",
+          "parameters": {}
+        },
+        "jobs": {
+          "api": "self_training_jobs",
+          "parameters": {}
+        },
+        "report": {
+          "api": "self_training_report",
+          "parameters": {
+            "job_id": {
+              "type": "string",
+              "required": false
+            }
+          }
+        },
+        "versions": {
+          "api": "self_models",
+          "parameters": {}
+        },
+        "results": {
+          "api": "self_test_result",
+          "parameters": {}
+        },
+        "env": {
+          "api": "self_environment",
+          "parameters": {}
+        }
+      },
+      "actions": {
+        "upload": {
+          "api": "self_upload",
+          "version": "1",
+          "parameters": {
+            "upload_id": {
+              "type": "string",
+              "required": true
+            },
+            "upload_label": {
+              "type": "string",
+              "required": true,
+              "choices": [
+                "self",
+                "other"
+              ]
+            }
+          }
+        },
+        "batch_positive": {
+          "api": "self_images_batch_positive",
+          "parameters": {
+            "image_ids": {
+              "type": "string",
+              "required": true,
+              "max_length": 65536
+            }
+          },
+          "confirmation": "确认批量标为是Bot所有已选图片（包括其他页）？"
+        },
+        "batch_negative": {
+          "api": "self_images_batch_negative",
+          "parameters": {
+            "image_ids": {
+              "type": "string",
+              "required": true,
+              "max_length": 65536
+            }
+          },
+          "confirmation": "确认批量标为不是Bot所有已选图片（包括其他页）？"
+        },
+        "batch_remove": {
+          "api": "self_images_batch_remove",
+          "parameters": {
+            "image_ids": {
+              "type": "string",
+              "required": true,
+              "max_length": 65536
+            }
+          },
+          "confirmation": "确认批量删除所有已选图片（包括其他页）？"
+        },
+        "remove_all": {
+          "api": "self_images_remove_all",
+          "parameters": {},
+          "confirmation": "确认删除图片库中全部未删除图片？包括其他页和当前筛选之外的图片；已训练模型保留，图片可在已删除列表恢复。"
+        },
+        "label": {
+          "api": "self_label",
+          "parameters": {
+            "image_id": {
+              "type": "string",
+              "required": true
+            },
+            "label": {
+              "type": "string",
+              "required": true,
+              "choices": [
+                "self",
+                "other"
+              ]
+            }
+          }
+        },
+        "remove": {
+          "api": "self_image_remove",
+          "parameters": {
+            "image_id": {
+              "type": "string",
+              "required": true
+            }
+          }
+        },
+        "restore": {
+          "api": "self_image_restore",
+          "parameters": {
+            "image_id": {
+              "type": "string",
+              "required": true
+            }
+          }
+        },
+        "submit": {
+          "api": "self_training_submit",
+          "parameters": {
+            "request_key": {
+              "type": "string",
+              "required": true
+            },
+            "mode": {
+              "type": "string",
+              "required": true
+            },
+            "device": {
+              "type": "string",
+              "required": true
+            }
+          },
+          "confirmation": "冻结当前标注和数据，开始新训练任务？"
+        },
+        "pause": {
+          "api": "self_training_pause",
+          "parameters": {
+            "job_id": {
+              "type": "string",
+              "required": true
+            }
+          },
+          "confirmation": "保存断点并暂停？"
+        },
+        "resume": {
+          "api": "self_training_resume",
+          "parameters": {
+            "job_id": {
+              "type": "string",
+              "required": true
+            }
+          }
+        },
+        "cancel": {
+          "api": "self_training_cancel",
+          "parameters": {
+            "job_id": {
+              "type": "string",
+              "required": true
+            }
+          },
+          "confirmation": "确认取消此任务？"
+        },
+        "activate": {
+          "api": "self_model_activate",
+          "parameters": {
+            "version": {
+              "type": "string",
+              "required": true
+            }
+          },
+          "confirmation": "确认启用此版本？新模型核验加载成功后才切换。"
+        },
+        "rollback": {
+          "api": "self_model_rollback",
+          "parameters": {},
+          "confirmation": "确认回退到显示的目标版本？"
+        },
+        "test_upload": {
+          "api": "self_test_upload",
+          "version": "1",
+          "parameters": {
+            "upload_id": {
+              "type": "string",
+              "required": true
+            }
+          }
+        },
+        "environment_mode": {
+          "api": "self_environment_mode",
+          "parameters": {
+            "mode": {
+              "type": "string",
+              "required": true
+            },
+            "python_path": {
+              "type": "string",
+              "required": false
+            }
+          },
+          "confirmation": "切换环境？当前推理进程会停止。"
+        },
+        "start": {
+          "api": "self_start_inference",
+          "parameters": {}
+        },
+        "stop": {
+          "api": "self_stop_inference",
+          "parameters": {},
+          "confirmation": "停止推理服务？之后需手动开启或重新加载插件。"
+        },
+        "install_dependencies": {
+          "api": "self_environment_manage",
+          "parameters": {
+            "kind": {
+              "type": "string",
+              "required": true,
+              "choices": [
+                "cpu",
+                "gpu"
+              ]
+            }
+          },
+          "confirmation": "确认安装插件依赖？默认只修改插件覆盖层，不修改MaiBot环境。\n\n⚠GPU版PyTorch主包约2.7G，请确保下载中不要关闭、更新、重启插件和MaiBot。"
+        },
+        "remove_dependencies": {
+          "api": "self_environment_manage",
+          "parameters": {
+            "kind": {
+              "type": "string",
+              "required": true,
+              "choices": [
+                "remove"
+              ]
+            }
+          },
+          "confirmation": "确认卸载插件依赖？"
+        }
+      },
+      "uploads": {
+        "library": {
+          "action": "upload",
+          "image_max_edge": 4000
+        },
+        "recognition": {
+          "action": "test_upload",
+          "image_max_edge": 4000
+        }
+      }
+    },
+    {
+      "id": "training",
+      "title": "训练任务",
+      "placement": "workspace",
+      "icon": "chart",
+      "description": "管理训练任务，查看进度、评测报告和错判图片。",
+      "mode": "custom",
+      "entry": "webui/training.html",
+      "queries": {
+        "pictures": {
+          "api": "self_images",
+          "version": "1",
+          "parameters": {
+            "page": {
+              "type": "integer",
+              "required": false,
+              "minimum": 1
+            },
+            "view": {
+              "type": "string",
+              "required": false,
+              "choices": [
+                "all",
+                "eligible",
+                "excluded",
+                "unlabelled",
+                "errors",
+                "removed"
+              ]
+            },
+            "job_id": {
+              "type": "string",
+              "required": false
+            }
+          }
+        },
+        "form": {
+          "api": "self_training_form",
+          "parameters": {}
+        },
+        "jobs": {
+          "api": "self_training_jobs",
+          "parameters": {}
+        },
+        "report": {
+          "api": "self_training_report",
+          "parameters": {
+            "job_id": {
+              "type": "string",
+              "required": false
+            }
+          }
+        },
+        "versions": {
+          "api": "self_models",
+          "parameters": {}
+        },
+        "results": {
+          "api": "self_test_result",
+          "parameters": {}
+        },
+        "env": {
+          "api": "self_environment",
+          "parameters": {}
+        }
+      },
+      "actions": {
+        "upload": {
+          "api": "self_upload",
+          "version": "1",
+          "parameters": {
+            "upload_id": {
+              "type": "string",
+              "required": true
+            },
+            "upload_label": {
+              "type": "string",
+              "required": true,
+              "choices": [
+                "self",
+                "other"
+              ]
+            }
+          }
+        },
+        "batch_positive": {
+          "api": "self_images_batch_positive",
+          "parameters": {
+            "image_ids": {
+              "type": "string",
+              "required": true,
+              "max_length": 65536
+            }
+          },
+          "confirmation": "确认批量标为是Bot所有已选图片（包括其他页）？"
+        },
+        "batch_negative": {
+          "api": "self_images_batch_negative",
+          "parameters": {
+            "image_ids": {
+              "type": "string",
+              "required": true,
+              "max_length": 65536
+            }
+          },
+          "confirmation": "确认批量标为不是Bot所有已选图片（包括其他页）？"
+        },
+        "batch_remove": {
+          "api": "self_images_batch_remove",
+          "parameters": {
+            "image_ids": {
+              "type": "string",
+              "required": true,
+              "max_length": 65536
+            }
+          },
+          "confirmation": "确认批量删除所有已选图片（包括其他页）？"
+        },
+        "remove_all": {
+          "api": "self_images_remove_all",
+          "parameters": {},
+          "confirmation": "确认删除图片库中全部未删除图片？包括其他页和当前筛选之外的图片；已训练模型保留，图片可在已删除列表恢复。"
+        },
+        "label": {
+          "api": "self_label",
+          "parameters": {
+            "image_id": {
+              "type": "string",
+              "required": true
+            },
+            "label": {
+              "type": "string",
+              "required": true,
+              "choices": [
+                "self",
+                "other"
+              ]
+            }
+          }
+        },
+        "remove": {
+          "api": "self_image_remove",
+          "parameters": {
+            "image_id": {
+              "type": "string",
+              "required": true
+            }
+          }
+        },
+        "restore": {
+          "api": "self_image_restore",
+          "parameters": {
+            "image_id": {
+              "type": "string",
+              "required": true
+            }
+          }
+        },
+        "submit": {
+          "api": "self_training_submit",
+          "parameters": {
+            "request_key": {
+              "type": "string",
+              "required": true
+            },
+            "mode": {
+              "type": "string",
+              "required": true
+            },
+            "device": {
+              "type": "string",
+              "required": true
+            }
+          },
+          "confirmation": "冻结当前标注和数据，开始新训练任务？"
+        },
+        "pause": {
+          "api": "self_training_pause",
+          "parameters": {
+            "job_id": {
+              "type": "string",
+              "required": true
+            }
+          },
+          "confirmation": "保存断点并暂停？"
+        },
+        "resume": {
+          "api": "self_training_resume",
+          "parameters": {
+            "job_id": {
+              "type": "string",
+              "required": true
+            }
+          }
+        },
+        "cancel": {
+          "api": "self_training_cancel",
+          "parameters": {
+            "job_id": {
+              "type": "string",
+              "required": true
+            }
+          },
+          "confirmation": "确认取消此任务？"
+        },
+        "activate": {
+          "api": "self_model_activate",
+          "parameters": {
+            "version": {
+              "type": "string",
+              "required": true
+            }
+          },
+          "confirmation": "确认启用此版本？新模型核验加载成功后才切换。"
+        },
+        "rollback": {
+          "api": "self_model_rollback",
+          "parameters": {},
+          "confirmation": "确认回退到显示的目标版本？"
+        },
+        "test_upload": {
+          "api": "self_test_upload",
+          "version": "1",
+          "parameters": {
+            "upload_id": {
+              "type": "string",
+              "required": true
+            }
+          }
+        },
+        "environment_mode": {
+          "api": "self_environment_mode",
+          "parameters": {
+            "mode": {
+              "type": "string",
+              "required": true
+            },
+            "python_path": {
+              "type": "string",
+              "required": false
+            }
+          },
+          "confirmation": "切换环境？当前推理进程会停止。"
+        },
+        "start": {
+          "api": "self_start_inference",
+          "parameters": {}
+        },
+        "stop": {
+          "api": "self_stop_inference",
+          "parameters": {},
+          "confirmation": "停止推理服务？之后需手动开启或重新加载插件。"
+        },
+        "install_dependencies": {
+          "api": "self_environment_manage",
+          "parameters": {
+            "kind": {
+              "type": "string",
+              "required": true,
+              "choices": [
+                "cpu",
+                "gpu"
+              ]
+            }
+          },
+          "confirmation": "确认安装插件依赖？默认只修改插件覆盖层，不修改MaiBot环境。\n\n⚠GPU版PyTorch主包约2.7G，请确保下载中不要关闭、更新、重启插件和MaiBot。"
+        },
+        "remove_dependencies": {
+          "api": "self_environment_manage",
+          "parameters": {
+            "kind": {
+              "type": "string",
+              "required": true,
+              "choices": [
+                "remove"
+              ]
+            }
+          },
+          "confirmation": "确认卸载插件依赖？"
+        }
+      },
+      "uploads": {
+        "library": {
+          "action": "upload",
+          "image_max_edge": 4000
+        },
+        "recognition": {
+          "action": "test_upload",
+          "image_max_edge": 4000
+        }
+      }
+    },
+    {
+      "id": "models",
+      "title": "模型版本",
+      "placement": "workspace",
+      "icon": "list",
+      "description": "核验与启用模型版本，查看报告或回退上一版本。",
+      "mode": "custom",
+      "entry": "webui/models.html",
+      "queries": {
+        "pictures": {
+          "api": "self_images",
+          "version": "1",
+          "parameters": {
+            "page": {
+              "type": "integer",
+              "required": false,
+              "minimum": 1
+            },
+            "view": {
+              "type": "string",
+              "required": false,
+              "choices": [
+                "all",
+                "eligible",
+                "excluded",
+                "unlabelled",
+                "errors",
+                "removed"
+              ]
+            },
+            "job_id": {
+              "type": "string",
+              "required": false
+            }
+          }
+        },
+        "form": {
+          "api": "self_training_form",
+          "parameters": {}
+        },
+        "jobs": {
+          "api": "self_training_jobs",
+          "parameters": {}
+        },
+        "report": {
+          "api": "self_training_report",
+          "parameters": {
+            "job_id": {
+              "type": "string",
+              "required": false
+            }
+          }
+        },
+        "versions": {
+          "api": "self_models",
+          "parameters": {}
+        },
+        "results": {
+          "api": "self_test_result",
+          "parameters": {}
+        },
+        "env": {
+          "api": "self_environment",
+          "parameters": {}
+        }
+      },
+      "actions": {
+        "upload": {
+          "api": "self_upload",
+          "version": "1",
+          "parameters": {
+            "upload_id": {
+              "type": "string",
+              "required": true
+            },
+            "upload_label": {
+              "type": "string",
+              "required": true,
+              "choices": [
+                "self",
+                "other"
+              ]
+            }
+          }
+        },
+        "batch_positive": {
+          "api": "self_images_batch_positive",
+          "parameters": {
+            "image_ids": {
+              "type": "string",
+              "required": true,
+              "max_length": 65536
+            }
+          },
+          "confirmation": "确认批量标为是Bot所有已选图片（包括其他页）？"
+        },
+        "batch_negative": {
+          "api": "self_images_batch_negative",
+          "parameters": {
+            "image_ids": {
+              "type": "string",
+              "required": true,
+              "max_length": 65536
+            }
+          },
+          "confirmation": "确认批量标为不是Bot所有已选图片（包括其他页）？"
+        },
+        "batch_remove": {
+          "api": "self_images_batch_remove",
+          "parameters": {
+            "image_ids": {
+              "type": "string",
+              "required": true,
+              "max_length": 65536
+            }
+          },
+          "confirmation": "确认批量删除所有已选图片（包括其他页）？"
+        },
+        "remove_all": {
+          "api": "self_images_remove_all",
+          "parameters": {},
+          "confirmation": "确认删除图片库中全部未删除图片？包括其他页和当前筛选之外的图片；已训练模型保留，图片可在已删除列表恢复。"
+        },
+        "label": {
+          "api": "self_label",
+          "parameters": {
+            "image_id": {
+              "type": "string",
+              "required": true
+            },
+            "label": {
+              "type": "string",
+              "required": true,
+              "choices": [
+                "self",
+                "other"
+              ]
+            }
+          }
+        },
+        "remove": {
+          "api": "self_image_remove",
+          "parameters": {
+            "image_id": {
+              "type": "string",
+              "required": true
+            }
+          }
+        },
+        "restore": {
+          "api": "self_image_restore",
+          "parameters": {
+            "image_id": {
+              "type": "string",
+              "required": true
+            }
+          }
+        },
+        "submit": {
+          "api": "self_training_submit",
+          "parameters": {
+            "request_key": {
+              "type": "string",
+              "required": true
+            },
+            "mode": {
+              "type": "string",
+              "required": true
+            },
+            "device": {
+              "type": "string",
+              "required": true
+            }
+          },
+          "confirmation": "冻结当前标注和数据，开始新训练任务？"
+        },
+        "pause": {
+          "api": "self_training_pause",
+          "parameters": {
+            "job_id": {
+              "type": "string",
+              "required": true
+            }
+          },
+          "confirmation": "保存断点并暂停？"
+        },
+        "resume": {
+          "api": "self_training_resume",
+          "parameters": {
+            "job_id": {
+              "type": "string",
+              "required": true
+            }
+          }
+        },
+        "cancel": {
+          "api": "self_training_cancel",
+          "parameters": {
+            "job_id": {
+              "type": "string",
+              "required": true
+            }
+          },
+          "confirmation": "确认取消此任务？"
+        },
+        "activate": {
+          "api": "self_model_activate",
+          "parameters": {
+            "version": {
+              "type": "string",
+              "required": true
+            }
+          },
+          "confirmation": "确认启用此版本？新模型核验加载成功后才切换。"
+        },
+        "rollback": {
+          "api": "self_model_rollback",
+          "parameters": {},
+          "confirmation": "确认回退到显示的目标版本？"
+        },
+        "test_upload": {
+          "api": "self_test_upload",
+          "version": "1",
+          "parameters": {
+            "upload_id": {
+              "type": "string",
+              "required": true
+            }
+          }
+        },
+        "environment_mode": {
+          "api": "self_environment_mode",
+          "parameters": {
+            "mode": {
+              "type": "string",
+              "required": true
+            },
+            "python_path": {
+              "type": "string",
+              "required": false
+            }
+          },
+          "confirmation": "切换环境？当前推理进程会停止。"
+        },
+        "start": {
+          "api": "self_start_inference",
+          "parameters": {}
+        },
+        "stop": {
+          "api": "self_stop_inference",
+          "parameters": {},
+          "confirmation": "停止推理服务？之后需手动开启或重新加载插件。"
+        },
+        "install_dependencies": {
+          "api": "self_environment_manage",
+          "parameters": {
+            "kind": {
+              "type": "string",
+              "required": true,
+              "choices": [
+                "cpu",
+                "gpu"
+              ]
+            }
+          },
+          "confirmation": "确认安装插件依赖？默认只修改插件覆盖层，不修改MaiBot环境。\n\n⚠GPU版PyTorch主包约2.7G，请确保下载中不要关闭、更新、重启插件和MaiBot。"
+        },
+        "remove_dependencies": {
+          "api": "self_environment_manage",
+          "parameters": {
+            "kind": {
+              "type": "string",
+              "required": true,
+              "choices": [
+                "remove"
+              ]
+            }
+          },
+          "confirmation": "确认卸载插件依赖？"
+        }
+      },
+      "uploads": {
+        "library": {
+          "action": "upload",
+          "image_max_edge": 4000
+        },
+        "recognition": {
+          "action": "test_upload",
+          "image_max_edge": 4000
+        }
+      }
+    },
+    {
+      "id": "test",
+      "title": "识别测试",
+      "placement": "workspace",
+      "icon": "puzzle",
+      "description": "上传新图片测试当前模型，不加入训练库。",
+      "mode": "custom",
+      "entry": "webui/test.html",
+      "queries": {
+        "pictures": {
+          "api": "self_images",
+          "version": "1",
+          "parameters": {
+            "page": {
+              "type": "integer",
+              "required": false,
+              "minimum": 1
+            },
+            "view": {
+              "type": "string",
+              "required": false,
+              "choices": [
+                "all",
+                "eligible",
+                "excluded",
+                "unlabelled",
+                "errors",
+                "removed"
+              ]
+            },
+            "job_id": {
+              "type": "string",
+              "required": false
+            }
+          }
+        },
+        "form": {
+          "api": "self_training_form",
+          "parameters": {}
+        },
+        "jobs": {
+          "api": "self_training_jobs",
+          "parameters": {}
+        },
+        "report": {
+          "api": "self_training_report",
+          "parameters": {
+            "job_id": {
+              "type": "string",
+              "required": false
+            }
+          }
+        },
+        "versions": {
+          "api": "self_models",
+          "parameters": {}
+        },
+        "results": {
+          "api": "self_test_result",
+          "parameters": {}
+        },
+        "env": {
+          "api": "self_environment",
+          "parameters": {}
+        }
+      },
+      "actions": {
+        "upload": {
+          "api": "self_upload",
+          "version": "1",
+          "parameters": {
+            "upload_id": {
+              "type": "string",
+              "required": true
+            },
+            "upload_label": {
+              "type": "string",
+              "required": true,
+              "choices": [
+                "self",
+                "other"
+              ]
+            }
+          }
+        },
+        "batch_positive": {
+          "api": "self_images_batch_positive",
+          "parameters": {
+            "image_ids": {
+              "type": "string",
+              "required": true,
+              "max_length": 65536
+            }
+          },
+          "confirmation": "确认批量标为是Bot所有已选图片（包括其他页）？"
+        },
+        "batch_negative": {
+          "api": "self_images_batch_negative",
+          "parameters": {
+            "image_ids": {
+              "type": "string",
+              "required": true,
+              "max_length": 65536
+            }
+          },
+          "confirmation": "确认批量标为不是Bot所有已选图片（包括其他页）？"
+        },
+        "batch_remove": {
+          "api": "self_images_batch_remove",
+          "parameters": {
+            "image_ids": {
+              "type": "string",
+              "required": true,
+              "max_length": 65536
+            }
+          },
+          "confirmation": "确认批量删除所有已选图片（包括其他页）？"
+        },
+        "remove_all": {
+          "api": "self_images_remove_all",
+          "parameters": {},
+          "confirmation": "确认删除图片库中全部未删除图片？包括其他页和当前筛选之外的图片；已训练模型保留，图片可在已删除列表恢复。"
+        },
+        "label": {
+          "api": "self_label",
+          "parameters": {
+            "image_id": {
+              "type": "string",
+              "required": true
+            },
+            "label": {
+              "type": "string",
+              "required": true,
+              "choices": [
+                "self",
+                "other"
+              ]
+            }
+          }
+        },
+        "remove": {
+          "api": "self_image_remove",
+          "parameters": {
+            "image_id": {
+              "type": "string",
+              "required": true
+            }
+          }
+        },
+        "restore": {
+          "api": "self_image_restore",
+          "parameters": {
+            "image_id": {
+              "type": "string",
+              "required": true
+            }
+          }
+        },
+        "submit": {
+          "api": "self_training_submit",
+          "parameters": {
+            "request_key": {
+              "type": "string",
+              "required": true
+            },
+            "mode": {
+              "type": "string",
+              "required": true
+            },
+            "device": {
+              "type": "string",
+              "required": true
+            }
+          },
+          "confirmation": "冻结当前标注和数据，开始新训练任务？"
+        },
+        "pause": {
+          "api": "self_training_pause",
+          "parameters": {
+            "job_id": {
+              "type": "string",
+              "required": true
+            }
+          },
+          "confirmation": "保存断点并暂停？"
+        },
+        "resume": {
+          "api": "self_training_resume",
+          "parameters": {
+            "job_id": {
+              "type": "string",
+              "required": true
+            }
+          }
+        },
+        "cancel": {
+          "api": "self_training_cancel",
+          "parameters": {
+            "job_id": {
+              "type": "string",
+              "required": true
+            }
+          },
+          "confirmation": "确认取消此任务？"
+        },
+        "activate": {
+          "api": "self_model_activate",
+          "parameters": {
+            "version": {
+              "type": "string",
+              "required": true
+            }
+          },
+          "confirmation": "确认启用此版本？新模型核验加载成功后才切换。"
+        },
+        "rollback": {
+          "api": "self_model_rollback",
+          "parameters": {},
+          "confirmation": "确认回退到显示的目标版本？"
+        },
+        "test_upload": {
+          "api": "self_test_upload",
+          "version": "1",
+          "parameters": {
+            "upload_id": {
+              "type": "string",
+              "required": true
+            }
+          }
+        },
+        "environment_mode": {
+          "api": "self_environment_mode",
+          "parameters": {
+            "mode": {
+              "type": "string",
+              "required": true
+            },
+            "python_path": {
+              "type": "string",
+              "required": false
+            }
+          },
+          "confirmation": "切换环境？当前推理进程会停止。"
+        },
+        "start": {
+          "api": "self_start_inference",
+          "parameters": {}
+        },
+        "stop": {
+          "api": "self_stop_inference",
+          "parameters": {},
+          "confirmation": "停止推理服务？之后需手动开启或重新加载插件。"
+        },
+        "install_dependencies": {
+          "api": "self_environment_manage",
+          "parameters": {
+            "kind": {
+              "type": "string",
+              "required": true,
+              "choices": [
+                "cpu",
+                "gpu"
+              ]
+            }
+          },
+          "confirmation": "确认安装插件依赖？默认只修改插件覆盖层，不修改MaiBot环境。\n\n⚠GPU版PyTorch主包约2.7G，请确保下载中不要关闭、更新、重启插件和MaiBot。"
+        },
+        "remove_dependencies": {
+          "api": "self_environment_manage",
+          "parameters": {
+            "kind": {
+              "type": "string",
+              "required": true,
+              "choices": [
+                "remove"
+              ]
+            }
+          },
+          "confirmation": "确认卸载插件依赖？"
+        }
+      },
+      "uploads": {
+        "library": {
+          "action": "upload",
+          "image_max_edge": 4000
+        },
+        "recognition": {
+          "action": "test_upload",
+          "image_max_edge": 4000
+        }
+      }
+    },
+    {
+      "id": "environment",
+      "title": "运行环境",
+      "placement": "workspace",
+      "icon": "settings",
+      "description": "检查依赖与设备，管理插件运行环境。",
+      "mode": "custom",
+      "entry": "webui/environment.html",
+      "queries": {
+        "pictures": {
+          "api": "self_images",
+          "version": "1",
+          "parameters": {
+            "page": {
+              "type": "integer",
+              "required": false,
+              "minimum": 1
+            },
+            "view": {
+              "type": "string",
+              "required": false,
+              "choices": [
+                "all",
+                "eligible",
+                "excluded",
+                "unlabelled",
+                "errors",
+                "removed"
+              ]
+            },
+            "job_id": {
+              "type": "string",
+              "required": false
+            }
+          }
+        },
+        "form": {
+          "api": "self_training_form",
+          "parameters": {}
+        },
+        "jobs": {
+          "api": "self_training_jobs",
+          "parameters": {}
+        },
+        "report": {
+          "api": "self_training_report",
+          "parameters": {
+            "job_id": {
+              "type": "string",
+              "required": false
+            }
+          }
+        },
+        "versions": {
+          "api": "self_models",
+          "parameters": {}
+        },
+        "results": {
+          "api": "self_test_result",
+          "parameters": {}
+        },
+        "env": {
+          "api": "self_environment",
+          "parameters": {}
+        }
+      },
+      "actions": {
+        "upload": {
+          "api": "self_upload",
+          "version": "1",
+          "parameters": {
+            "upload_id": {
+              "type": "string",
+              "required": true
+            },
+            "upload_label": {
+              "type": "string",
+              "required": true,
+              "choices": [
+                "self",
+                "other"
+              ]
+            }
+          }
+        },
+        "batch_positive": {
+          "api": "self_images_batch_positive",
+          "parameters": {
+            "image_ids": {
+              "type": "string",
+              "required": true,
+              "max_length": 65536
+            }
+          },
+          "confirmation": "确认批量标为是Bot所有已选图片（包括其他页）？"
+        },
+        "batch_negative": {
+          "api": "self_images_batch_negative",
+          "parameters": {
+            "image_ids": {
+              "type": "string",
+              "required": true,
+              "max_length": 65536
+            }
+          },
+          "confirmation": "确认批量标为不是Bot所有已选图片（包括其他页）？"
+        },
+        "batch_remove": {
+          "api": "self_images_batch_remove",
+          "parameters": {
+            "image_ids": {
+              "type": "string",
+              "required": true,
+              "max_length": 65536
+            }
+          },
+          "confirmation": "确认批量删除所有已选图片（包括其他页）？"
+        },
+        "remove_all": {
+          "api": "self_images_remove_all",
+          "parameters": {},
+          "confirmation": "确认删除图片库中全部未删除图片？包括其他页和当前筛选之外的图片；已训练模型保留，图片可在已删除列表恢复。"
+        },
+        "label": {
+          "api": "self_label",
+          "parameters": {
+            "image_id": {
+              "type": "string",
+              "required": true
+            },
+            "label": {
+              "type": "string",
+              "required": true,
+              "choices": [
+                "self",
+                "other"
+              ]
+            }
+          }
+        },
+        "remove": {
+          "api": "self_image_remove",
+          "parameters": {
+            "image_id": {
+              "type": "string",
+              "required": true
+            }
+          }
+        },
+        "restore": {
+          "api": "self_image_restore",
+          "parameters": {
+            "image_id": {
+              "type": "string",
+              "required": true
+            }
+          }
+        },
+        "submit": {
+          "api": "self_training_submit",
+          "parameters": {
+            "request_key": {
+              "type": "string",
+              "required": true
+            },
+            "mode": {
+              "type": "string",
+              "required": true
+            },
+            "device": {
+              "type": "string",
+              "required": true
+            }
+          },
+          "confirmation": "冻结当前标注和数据，开始新训练任务？"
+        },
+        "pause": {
+          "api": "self_training_pause",
+          "parameters": {
+            "job_id": {
+              "type": "string",
+              "required": true
+            }
+          },
+          "confirmation": "保存断点并暂停？"
+        },
+        "resume": {
+          "api": "self_training_resume",
+          "parameters": {
+            "job_id": {
+              "type": "string",
+              "required": true
+            }
+          }
+        },
+        "cancel": {
+          "api": "self_training_cancel",
+          "parameters": {
+            "job_id": {
+              "type": "string",
+              "required": true
+            }
+          },
+          "confirmation": "确认取消此任务？"
+        },
+        "activate": {
+          "api": "self_model_activate",
+          "parameters": {
+            "version": {
+              "type": "string",
+              "required": true
+            }
+          },
+          "confirmation": "确认启用此版本？新模型核验加载成功后才切换。"
+        },
+        "rollback": {
+          "api": "self_model_rollback",
+          "parameters": {},
+          "confirmation": "确认回退到显示的目标版本？"
+        },
+        "test_upload": {
+          "api": "self_test_upload",
+          "version": "1",
+          "parameters": {
+            "upload_id": {
+              "type": "string",
+              "required": true
+            }
+          }
+        },
+        "environment_mode": {
+          "api": "self_environment_mode",
+          "parameters": {
+            "mode": {
+              "type": "string",
+              "required": true
+            },
+            "python_path": {
+              "type": "string",
+              "required": false
+            }
+          },
+          "confirmation": "切换环境？当前推理进程会停止。"
+        },
+        "start": {
+          "api": "self_start_inference",
+          "parameters": {}
+        },
+        "stop": {
+          "api": "self_stop_inference",
+          "parameters": {},
+          "confirmation": "停止推理服务？之后需手动开启或重新加载插件。"
+        },
+        "install_dependencies": {
+          "api": "self_environment_manage",
+          "parameters": {
+            "kind": {
+              "type": "string",
+              "required": true,
+              "choices": [
+                "cpu",
+                "gpu"
+              ]
+            }
+          },
+          "confirmation": "确认安装插件依赖？默认只修改插件覆盖层，不修改MaiBot环境。\n\n⚠GPU版PyTorch主包约2.7G，请确保下载中不要关闭、更新、重启插件和MaiBot。"
+        },
+        "remove_dependencies": {
+          "api": "self_environment_manage",
+          "parameters": {
+            "kind": {
+              "type": "string",
+              "required": true,
+              "choices": [
+                "remove"
+              ]
+            }
+          },
+          "confirmation": "确认卸载插件依赖？"
+        }
+      },
+      "uploads": {
+        "library": {
+          "action": "upload",
+          "image_max_edge": 4000
+        },
+        "recognition": {
+          "action": "test_upload",
+          "image_max_edge": 4000
+        }
+      }
+    }
+  ]
+}
