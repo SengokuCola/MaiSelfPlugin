@@ -4,7 +4,7 @@
     "custom_pages",
     "image_upload"
   ],
-  "workspace_title": "自身角色识别",
+  "workspace_title": "照片上的人是你吗？",
   "pages": [
     {
       "id": "images",

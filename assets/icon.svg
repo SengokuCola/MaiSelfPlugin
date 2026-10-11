@@ -1,15 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
-  <title>MaiSelf · 识别之眼</title>
-  <desc>奶油纸色底上的炭黑杏仁眼，杏橙虹膜与薄荷绿菱形高光，四角取景标记。</desc>
+  <title>照片上的人是你吗？</title>
+  <desc>暖纸色底上两个错位的折角轮廓，薄荷绿与杏橙在中央形成炭黑交叠区域。</desc>
   <rect width="256" height="256" rx="48" fill="#F7F1E4"/>
-  <path d="M43 81V43h38M175 43h38v38M213 175v38h-38M81 213H43v-38" stroke="#292C29" stroke-width="9" stroke-linecap="square"/>
-  <path d="M44 128c23-34 50-51 84-51s61 17 84 51c-23 34-50 51-84 51s-61-17-84-51Z" fill="#292C29"/>
-  <path d="M57 128c22-25 44-37 71-37s49 12 71 37c-22 25-44 37-71 37s-49-12-71-37Z" fill="#F7F1E4"/>
-  <circle cx="128" cy="128" r="39" fill="#ED8C57"/>
-  <path d="M128 89a39 39 0 0 1 39 39h-39Z" fill="#F4B578"/>
-  <circle cx="128" cy="128" r="20" fill="#292C29"/>
-  <path d="m151 95 10 10-10 10-10-10Z" fill="#A4C8AA"/>
-  <path d="M113 145a23 23 0 0 0 31-3" stroke="#F7F1E4" stroke-width="4" stroke-linecap="square"/>
-  <path d="M106 203h44" stroke="#ED8C57" stroke-width="7"/>
-  <path d="M128 47v14" stroke="#A4C8AA" stroke-width="7"/>
+  <path d="M48 62h84l32 32v84H80l-32-32Z" fill="#A4C8AA"/>
+  <path d="M92 78h84l32 32v84h-84l-32-32Z" fill="#ED8C57"/>
+  <path d="M92 78h56l16 16v84h-56l-16-16Z" fill="#292C29"/>
+  <path d="M66 82h55l23 23v53" stroke="#F7F1E4" stroke-width="7" stroke-linejoin="miter"/>
+  <path d="M112 101h55l22 22v52h-54" stroke="#F7F1E4" stroke-width="7" stroke-linejoin="miter"/>
+  <path d="M70 211h30" stroke="#292C29" stroke-width="6"/>
+  <path d="M107 211h10" stroke="#ED8C57" stroke-width="6"/>
 </svg>

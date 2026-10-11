@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "version": "0.2.0",
-  "name": "MaiBot 自身角色识别",
+  "name": "照片上的人是你吗？",
   "description": "管理员标注、训练与版本管理；自动识别收到的图片并添加自身角色上下文提示。",
   "author": {
     "name": "SengokuCola",

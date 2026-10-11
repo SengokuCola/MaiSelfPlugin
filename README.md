@@ -1,4 +1,4 @@
-# MaiBot 自身角色识别
+# 照片上的人是你吗？
 
 作者：[SengokuCola](https://github.com/SengokuCola) · 分类：媒体处理 · [更新日志](CHANGELOG.md)
 
@@ -6,7 +6,7 @@
 
 ## 安装
 
-需要 MaiBot **1.3.6+**、SDK **2.11.0+**，以及支持 `custom_pages`、`image_upload` 的 WebUI。将插件放入 `plugins/mai_recog_self`，启用后可在 WebUI 的“自身角色识别”工作区管理。
+需要 MaiBot **1.3.6+**、SDK **2.11.0+**，以及支持 `custom_pages`、`image_upload` 的 WebUI。将插件放入 `plugins/mai_recog_self`，启用后可在 WebUI 的“照片上的人是你吗？”工作区管理。
 
 SDK 2.11.0 使用本地开发源码时，在主程序目录执行：
 
