@@ -14,7 +14,7 @@ def test_resume_matches_uninterrupted_weights(tmp_path, boundary):
     directory = tmp_path / "jobs" / "exact"
     directory.mkdir()
     full = train(tmp_path, snapshot, lambda p: None, lambda: False, max_epochs=2)
-    expected = torch.load(directory / "selected.pt", weights_only=True)
+    expected = torch.load(directory / "selected.pt", weights_only=True)["state_dict"]
     stop = False
 
     def progress(p):
@@ -25,7 +25,7 @@ def test_resume_matches_uninterrupted_weights(tmp_path, boundary):
     with pytest.raises(TrainingPaused):
         train(tmp_path, snapshot, progress, lambda: False, max_epochs=2, paused=lambda: stop)
     resumed = train(tmp_path, snapshot, lambda p: None, lambda: False, max_epochs=2)
-    actual = torch.load(directory / "selected.pt", weights_only=True)
+    actual = torch.load(directory / "selected.pt", weights_only=True)["state_dict"]
     assert all(torch.equal(expected[k], actual[k]) for k in expected)
     assert full["history"] == resumed["history"]
     assert resumed["audit"]["passed"]

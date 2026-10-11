@@ -16,6 +16,13 @@
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 
 #device-buttons > [hidden]{display:none}
+
+#image-grid.gallery{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+#image-grid .picture{padding:0;min-width:0}#image-grid .picture-media{height:140px;padding:4px}
+#image-grid .picture-body{padding:8px 10px}#image-grid .badge{padding:3px 7px;font-size:11px}
+#image-grid .picture-meta{font-size:10px;line-height:1.4;margin:5px 0 7px}
+#image-grid .picture-body small{font-size:10px}#image-grid .hint{font-size:11px;margin-top:5px;line-height:1.5}
+@media(max-width:720px){#image-grid.gallery{grid-template-columns:repeat(2,minmax(0,1fr))}#image-grid .picture-media{height:120px}}
 </style>
 </head>
 <body class="maibot-page">
@@ -36,7 +43,7 @@
     <div class="pagination"><p class="muted" id="page-summary">—</p><div class="row"><button class="maibot-button" id="previous-page">上一页</button><button class="maibot-button" id="next-page">下一页</button></div></div>
   </section>
   <section class="section" id="training" role="region" aria-label="训练任务" hidden>
-    <div class="split"><aside class="card maibot-card"><div class="panel-title"><h3>新训练任务</h3><p class="hint">训练数据会在开始时冻结为快照。</p></div><div id="readiness" class="readiness maibot-inset">正在检查数据…</div><div class="field"><label>训练模式</label><div class="segmented" id="mode-buttons"><button aria-pressed="true" class="maibot-button" data-mode="incremental">增量训练</button><button class="maibot-button" data-mode="fresh">从头训练</button></div><p class="hint">增量继承当前模型；没有启用模型时自动从头训练。</p></div><div class="field"><label>训练设备</label><div class="segmented" id="device-buttons"><button aria-pressed="true" class="maibot-button" data-device="cpu">CPU</button><button class="maibot-button" data-device="cuda">CUDA</button></div><p id="training-reason" class="hint">正在检查运行环境…</p></div><button id="start-training" disabled class="maibot-button full maibot-button-primary" data-action="submit">开始训练</button><p class="hint">每次运行一个任务，中断后可手动重试。</p></aside><div><div class="card maibot-card"><div class="card-head"><div><h3>任务记录</h3><p>运行期间每 5 秒更新状态</p></div><span class="badge maibot-badge" id="job-count">—</span></div><div id="job-list">正在读取任务…</div></div><div class="card report maibot-card"><div class="card-head"><div><h3>评测报告</h3></div><select class="maibot-select" id="report-select" aria-label="选择任务报告"><option value="">选择已完成任务</option></select></div><div id="report-content" class="muted">尚未选择报告。</div></div></div></div>
+    <div class="split"><aside class="card maibot-card"><div class="panel-title"><h3>新训练任务</h3><p class="hint">训练数据会在开始时冻结为快照。</p></div><div id="readiness" class="readiness maibot-inset">正在检查数据…</div><div class="field"><label>训练模式</label><div class="segmented" id="mode-buttons"><button aria-pressed="true" class="maibot-button" data-mode="incremental">增量训练</button><button class="maibot-button" data-mode="fresh">从头训练</button></div><p class="hint">增量继承当前模型；仅训练新增或标签已修改的图片。</p></div><div class="field"><label>训练设备</label><div class="segmented" id="device-buttons"><button aria-pressed="true" class="maibot-button" data-device="cpu">CPU</button><button class="maibot-button" data-device="cuda">CUDA</button></div><p id="training-reason" class="hint">正在检查运行环境…</p></div><div class="field"><label for="input-size">输入尺寸</label><select id="input-size" class="maibot-select"><option value="224">224×224</option><option value="320" selected>320×320</option><option value="448">448×448</option></select></div><button id="start-training" disabled class="maibot-button full maibot-button-primary" data-action="submit">开始训练</button><p class="hint">每次运行一个任务，中断后可手动重试。</p></aside><div><div class="card maibot-card"><div class="card-head"><div><h3>任务记录</h3><p>运行期间每 5 秒更新状态</p></div><span class="badge maibot-badge" id="job-count">—</span></div><div id="job-list">正在读取任务…</div></div><div class="card report maibot-card"><div class="card-head"><div><h3>评测报告</h3></div><select class="maibot-select" id="report-select" aria-label="选择任务报告"><option value="">选择已完成任务</option></select></div><div id="report-content" class="muted">尚未选择报告。</div></div></div></div>
   </section>
   <section class="section" id="models" role="region" aria-label="模型版本" hidden>
     <div class="intro row between"><button class="maibot-button" id="rollback" disabled data-action="rollback">回退上一版本</button></div><p id="rollback-text" class="notice">正在读取版本信息…</p><div id="version-list" class="versions"></div>
@@ -65,7 +72,7 @@ const selected = new Set();
 // build.py specializes this shared source for each sidebar entry.
 const HOME_PAGE = 'test';
 const PAGE_TITLES = {images:'图片标注',training:'训练任务',models:'模型版本',test:'识别测试',environment:'运行环境'};
-let tab = HOME_PAGE, page = 1, filter = 'all', errorJob = '', reportJob = '', mode = 'incremental', device = 'cpu';
+let tab = HOME_PAGE, page = 1, filter = 'all', errorJob = '', reportJob = '', mode = 'incremental', device = 'cpu', inputSize = null, deviceChosen = false;
 let busy = false, loading = false, loadAgain = false, generation = 0, lastUpdate = '';
 let uploadKind = 'library', uploadLabel = 'self', uploadRows = [], uploadRunning = false, uploadController = null, retryArgs = null;
 
@@ -163,7 +170,7 @@ function renderImages() {
   $('image-count').textContent = data.pictures.total;
   $('image-source').textContent = data.pictures.source_text;
   $('image-grid').className = list.length ? 'gallery' : '';
-  $('image-grid').innerHTML = list.length ? list.map(row => `<article class="picture ${selected.has(row.id) ? 'selected' : ''} maibot-card"><div class="picture-media"><img src="${thumbnail(row.thumbnail)}" alt="${escape(row.label_text)}图片" loading="lazy" decoding="async"><label class="check"><input type="checkbox" data-select-image="${escape(row.id)}" aria-label="选择图片 ${escape(row.id)}" ${selected.has(row.id) ? 'checked' : ''}></label></div><div class="picture-body"><div class="row between">${badge(row.label_text, row.label === 'self' ? 'good' : '')}<small>${row.width} × ${row.height}</small></div><p class="picture-meta">${escape(row.status)} · ${escape(row.split || '未划分')}<br><span class="mono" title="图组 ${escape(row.group_id)}">${escape(row.id.slice(0,12))}</span></p>${row.model_text ? `<p class="hint" style="margin-bottom:9px">${escape(row.model_text)}</p>` : ''}<div class="picture-actions">${row.removed ? button('恢复',`data-image-action="restore" data-id="${escape(row.id)}"`,busy) : button('是 Bot',`data-image-label="self" data-id="${escape(row.id)}"`,busy) + button('不是 Bot',`data-image-label="other" data-id="${escape(row.id)}"`,busy) + button('删除',`data-image-action="remove" data-id="${escape(row.id)}"`,busy,'danger')}</div></div></article>`).join('') : empty(filter === 'errors' ? '暂无错判图片' : '这里还没有图片', filter === 'errors' && !errorJob ? '先从训练任务或模型版本中选择“查看错判”。' : '上传图片或换一个筛选范围。');
+  $('image-grid').innerHTML = list.length ? list.map(row => `<article class="picture ${selected.has(row.id) ? 'selected' : ''} maibot-card"><div class="picture-media"><img src="${thumbnail(row.thumbnail)}" alt="${escape(row.label_text)}图片" loading="lazy" decoding="async"><label class="check"><input type="checkbox" data-select-image="${escape(row.id)}" aria-label="选择图片 ${escape(row.id)}" ${selected.has(row.id) ? 'checked' : ''}></label></div><div class="picture-body"><div class="row between">${badge(row.label_text, row.label === 'self' ? 'good' : '')}<small>${row.width} × ${row.height}</small></div><p class="picture-meta">${escape(row.status)} · ${escape(row.training_text)}<br><span class="mono" title="图组 ${escape(row.group_id)}">${escape(row.id.slice(0,12))}</span></p>${row.model_text ? `<p class="hint" style="margin-bottom:9px">${escape(row.model_text)}</p>` : ''}<div class="picture-actions">${row.removed ? button('恢复',`data-image-action="restore" data-id="${escape(row.id)}"`,busy) : button('是 Bot',`data-image-label="self" data-id="${escape(row.id)}"`,busy) + button('不是 Bot',`data-image-label="other" data-id="${escape(row.id)}"`,busy) + button('删除',`data-image-action="remove" data-id="${escape(row.id)}"`,busy,'danger')}</div></div></article>`).join('') : empty(filter === 'errors' ? '暂无错判图片' : '这里还没有图片', filter === 'errors' && !errorJob ? '先从训练任务或模型版本中选择“查看错判”。' : '上传图片或换一个筛选范围。');
   $('page-summary').textContent = `第 ${page} / ${data.pictures.pages} 页 · 共 ${data.pictures.total} 张`;
   $('previous-page').disabled = page <= 1;
   $('next-page').disabled = page >= data.pictures.pages;
@@ -173,26 +180,34 @@ function renderImages() {
 }
 function renderTraining() {
   if (data.form) {
+    if (inputSize === null) inputSize = data.form.input_size ?? 320;
+    $('input-size').value = String(inputSize);
     const {self,other} = data.form.groups;
-    $('readiness').innerHTML = `<div class="row"><span>是 Bot <b>${self}</b></span><span>不是 Bot <b>${other}</b></span></div><progress max="20" value="${Math.min(self,other,20)}" aria-label="训练数据准备程度"></progress><p class="hint">${escape(data.form.summary)}</p>`;
+    $('readiness').innerHTML = `<div class="row"><span>是 Bot <b>${self}</b></span><span>不是 Bot <b>${other}</b></span></div><progress max="20" value="${Math.min(self,other,20)}" aria-label="训练数据准备程度"></progress><p class="hint">${escape(data.form.summary)}</p><p class="hint">待训练 ${data.form.pending_count ?? 0} 张</p>`;
   }
   const env = data.env, form = data.form;
+  if (!deviceChosen && env?.installed && !env.detecting) {
+    device = env.build_cuda ? 'cuda' : 'cpu';
+    deviceChosen = true;
+    for (const item of document.querySelectorAll('[data-device]')) item.setAttribute('aria-pressed',String(item.dataset.device === device));
+  }
   const cpuOnly = Boolean(env?.installed && !env.detecting && !env.build_cuda);
   if (cpuOnly && device !== 'cpu') {
     device = 'cpu';
     for (const item of document.querySelectorAll('[data-device]')) item.setAttribute('aria-pressed',String(item.dataset.device === device));
   }
   const running = data.jobs?.rows.some(row => ['queued','running','pausing','paused','cancelling'].includes(row.state));
-  const reason = !form?.can_train ? '每类需要至少 20 个可训练独立图组。' : !env || env.detecting ? '正在检测运行环境，请稍候。' : !env.installed ? '请先到运行环境安装 PyTorch。' : device === 'cuda' && !env.cuda ? 'CUDA 不可用，请选择 CPU 或检查 GPU 环境。' : running ? '已有未结束的训练任务，可暂停、继续或取消。' : '数据与设备已准备好，可以开始训练。';
+  const noNew = mode === 'incremental' && form?.has_model && form.pending_count === 0;
+  const reason = noNew ? '没有待训练图片，可新增图片或选择从头训练。' : !form?.can_train ? '每类需要至少 20 个可训练独立图组。' : !env || env.detecting ? '正在检测运行环境，请稍候。' : !env.installed ? '请先到运行环境安装 PyTorch。' : device === 'cuda' && !env.cuda ? 'CUDA 不可用，请选择 CPU 或检查 GPU 环境。' : running ? '已有未结束的训练任务，可暂停、继续或取消。' : '数据与设备已准备好，可以开始训练。';
   $('training-reason').textContent = reason;
-  $('start-training').disabled = busy || !form?.can_train || !env?.installed || env.detecting || (device === 'cuda' && !env.cuda) || running;
+  $('start-training').disabled = busy || noNew || !form?.can_train || !env?.installed || env.detecting || (device === 'cuda' && !env.cuda) || running;
   const cudaButton = document.querySelector('[data-device=cuda]');
   cudaButton.hidden = cpuOnly;
   cudaButton.disabled = !env?.cuda;
   if (!data.jobs) return;
   const list = data.jobs.rows;
   $('job-count').textContent = `${list.length} 个任务`;
-  $('job-list').innerHTML = list.length ? list.map(row => `<article class="job"><div class="job-title"><h3>${escape(row.name)}</h3>${badge(row.device_text)}${badge(row.state_text,row.state === 'complete' ? 'good' : ['failed','interrupted'].includes(row.state) ? 'error' : 'warn')}<span class="mono muted">${escape(row.id.slice(0,8))}</span></div><p>${escape(row.progress_text)}</p><div class="progress-row"><progress max="100" value="${Math.max(0,Math.min(100,row.percent))}" aria-label="${escape(row.name)}进度"></progress><span>${row.percent}%</span></div>${row.error ? `<p style="color:var(--danger)">${escape(row.error)}</p>` : ''}<div class="job-footer"><small>${escape(row.time_text)}</small><div class="row">${row.can_pause ? button('暂停',`data-job-action="pause" data-id="${escape(row.id)}"`,busy) : ''}${row.can_resume ? button('继续',`data-job-action="resume" data-id="${escape(row.id)}"`,busy) : ''}${row.can_cancel ? button('取消',`data-job-action="cancel" data-id="${escape(row.id)}"`,busy,'danger') : ''}${row.has_report ? button('查看报告',`data-report="${escape(row.id)}"`) + button('查看错判',`data-errors="${escape(row.id)}"`) : ''}</div></div></article>`).join('') : empty('还没有训练任务','准备好正负例后，从左侧开始第一次训练。');
+  $('job-list').innerHTML = list.length ? list.map(row => `<article class="job"><div class="job-title"><h3>${escape(row.name)}</h3>${badge(row.device_text)}${row.input_size ? badge(`${row.input_size}×${row.input_size}`) : ''}${badge(row.state_text,row.state === 'complete' ? 'good' : ['failed','interrupted'].includes(row.state) ? 'error' : 'warn')}<span class="mono muted">${escape(row.id.slice(0,8))}</span></div><p>${escape(row.progress_text)}</p><div class="progress-row"><progress max="100" value="${Math.max(0,Math.min(100,row.percent))}" aria-label="${escape(row.name)}进度"></progress><span>${row.percent}%</span></div>${row.error ? `<p style="color:var(--danger)">${escape(row.error)}</p>` : ''}<div class="job-footer"><small>${escape(row.time_text)}</small><div class="row">${row.can_pause ? button('暂停',`data-job-action="pause" data-id="${escape(row.id)}"`,busy) : ''}${row.can_resume ? button('继续',`data-job-action="resume" data-id="${escape(row.id)}"`,busy) : ''}${row.can_cancel ? button('取消',`data-job-action="cancel" data-id="${escape(row.id)}"`,busy,'danger') : ''}${row.has_report ? button('查看报告',`data-report="${escape(row.id)}"`) + button('查看错判',`data-errors="${escape(row.id)}"`) : ''}</div></div></article>`).join('') : empty('还没有训练任务','准备好正负例后，从左侧开始第一次训练。');
   $('report-select').innerHTML = '<option value="">选择已完成任务</option>' + list.filter(row => row.has_report).map(row => `<option value="${escape(row.id)}">${escape(row.name)}</option>`).join('');
   $('report-select').value = reportJob;
   renderReport();
@@ -209,12 +224,12 @@ function renderModels() {
   if (!data.versions) return;
   $('rollback').disabled = busy || !data.versions.can_rollback;
   $('rollback-text').textContent = data.versions.rollback_text;
-  $('version-list').innerHTML = data.versions.rows.length ? data.versions.rows.map(row => `<article class="version ${row.status === '使用中' ? 'active' : ''} maibot-card"><div class="row between"><h3>${escape(row.name)}</h3>${badge(row.status,row.status === '使用中' ? 'good' : '')}</div><p class="mono">${escape(row.id)}</p><p>验证集 · ${escape(row.validation_text)}</p><p>测试集 · ${escape(row.test_text)}</p><div class="row">${button(row.can_activate ? '启用此版本' : '当前使用中',`data-version="${escape(row.id)}"`,busy || !row.can_activate,row.can_activate ? 'primary' : '')}${button('查看报告',`data-report="${escape(row.job_id)}"`)}${button('查看错判',`data-errors="${escape(row.job_id)}"`)}</div></article>`).join('') : empty('尚无已训练版本','完成训练与核验后，新版本会出现在这里。');
+  $('version-list').innerHTML = data.versions.rows.length ? data.versions.rows.map(row => `<article class="version ${row.status === '使用中' ? 'active' : ''} maibot-card"><div class="row between"><h3>${escape(row.name)}</h3>${badge(`${row.input_size}×${row.input_size}`)}${badge(row.status,row.status === '使用中' ? 'good' : '')}</div><p class="mono">${escape(row.id)}</p><p>验证集 · ${escape(row.validation_text)}</p><p>测试集 · ${escape(row.test_text)}</p><div class="row">${button(row.can_activate ? '启用此版本' : '当前使用中',`data-version="${escape(row.id)}"`,busy || !row.can_activate,row.can_activate ? 'primary' : '')}${button('查看报告',`data-report="${escape(row.job_id)}"`)}${button('查看错判',`data-errors="${escape(row.job_id)}"`)}</div></article>`).join('') : empty('尚无已训练版本','完成训练与核验后，新版本会出现在这里。');
 }
 function renderTests() {
   if (!data.results) return;
   $('test-results').className = data.results.rows.length ? 'gallery' : '';
-  $('test-results').innerHTML = data.results.rows.length ? data.results.rows.map(row => `<article class="picture maibot-card"><div class="picture-media">${thumbnail(row.thumbnail) ? `<img src="${thumbnail(row.thumbnail)}" alt="识别测试图片" loading="lazy" decoding="async">` : '<span class="muted">无预览</span>'}</div><div class="picture-body">${badge(row.status === 'ok' ? row.judgment : '识别未完成',row.status === 'ok' && row.judgment === '是自己' ? 'good' : row.status !== 'ok' ? 'error' : '')}<p class="hint">${escape(row.summary)}</p><p class="picture-meta"><span>${escape(row.version_text)}</span><span>${escape(row.elapsed)}</span></p></div></article>`).join('') : empty('还没有识别测试','选择一张新图片，看看模型如何判断。');
+  $('test-results').innerHTML = data.results.rows.length ? data.results.rows.map(row => `<article class="picture maibot-card"><div class="picture-media">${thumbnail(row.thumbnail) ? `<img src="${thumbnail(row.thumbnail)}" alt="识别测试图片" loading="lazy" decoding="async">` : '<span class="muted">无预览</span>'}</div><div class="picture-body">${badge(row.status === 'ok' ? row.judgment : '识别未完成',row.status === 'ok' && row.judgment === '是自己' ? 'good' : row.status !== 'ok' ? 'error' : '')}<p class="hint">${escape(row.summary)}</p><p class="picture-meta"><span>${escape(row.version_text)}</span><span>${escape(row.elapsed)}</span></p><div class="picture-actions" style="margin-top:7px">${button('重新识别',`data-retest="${escape(row.id || '')}" title="${row.id ? '使用当前模型重新识别' : '原图已失效，请重新上传'}"`,busy || !row.id)}</div></div></article>`).join('') : empty('还没有识别测试','选择一张新图片，看看模型如何判断。');
 }
 function renderEnvironment() {
   if (!data.env) return;
@@ -236,7 +251,8 @@ async function operate(alias, args = {}, success = '操作已完成') {
   if (busy || uploadRunning) return false;
   busy = true; render(); notice('正在处理，请稍候…');
   try {
-    await maibot.action(alias, args);
+    const result = await maibot.action(alias, args);
+    if (alias === 'test_upload' && result.status !== 'ok') throw new Error(result.summary || result.error || '识别未完成');
     if (['batch_positive','batch_negative','batch_remove','remove_all'].includes(alias)) selected.clear();
     notice(success, 'good'); return true;
   } catch (error) { notice(error.message.replace(/^ApiError:\s*/, ''), 'error'); return false; }
@@ -247,7 +263,7 @@ document.addEventListener('click', event => {
   const node = event.target.closest('button');
   if (!node || node.disabled) return;
   if (node.dataset.mode) { mode = node.dataset.mode; for (const item of document.querySelectorAll('[data-mode]')) item.setAttribute('aria-pressed',String(item.dataset.mode === mode)); }
-  if (node.dataset.device) { device = node.dataset.device; for (const item of document.querySelectorAll('[data-device]')) item.setAttribute('aria-pressed',String(item.dataset.device === device)); renderTraining(); }
+  if (node.dataset.device) { deviceChosen = true; device = node.dataset.device; for (const item of document.querySelectorAll('[data-device]')) item.setAttribute('aria-pressed',String(item.dataset.device === device)); renderTraining(); }
   if (node.dataset.imageLabel) void operate('label',{ image_id:node.dataset.id,label:node.dataset.imageLabel },'图片身份已更新');
   if (node.dataset.imageAction) void operate(node.dataset.imageAction,{ image_id:node.dataset.id },'图片库已更新');
   if (node.dataset.batch && selected.size) void operate(node.dataset.batch,{ image_ids:JSON.stringify([...selected]) },'批量操作已完成');
@@ -258,7 +274,8 @@ document.addEventListener('click', event => {
   if (node.dataset.envKind) { const kind = data.env[`${node.dataset.envKind}_action`]; void operate(kind === 'remove' ? 'remove_dependencies' : 'install_dependencies',{ kind }); }
   if (node.dataset.envMode === 'host') void operate('environment_mode',{ mode:'host' });
   if (node.dataset.envMode === 'custom') { $('custom-python').value = data.env?.is_private ? data.env.python_path : ''; $('environment-dialog').showModal(); }
-  if (node.dataset.action === 'submit' && data.form) void operate('submit',{ request_key:data.form.request_key,mode,device },'训练任务已提交');
+  if (node.dataset.retest) void operate('test_upload',{upload_id:'',result_id:node.dataset.retest},'识别已更新');
+  if (node.dataset.action === 'submit' && data.form) void operate('submit',{ request_key:data.form.request_key,mode,device,input_size:inputSize ?? 320 },'训练任务已提交');
   if (['rollback','remove_all','stop','start'].includes(node.dataset.action)) void operate(node.dataset.action);
   if (node.dataset.openUpload) openUpload(node.dataset.openUpload);
   if (node.dataset.uploadLabel && !uploadRunning) { uploadLabel = node.dataset.uploadLabel; for (const item of document.querySelectorAll('[data-upload-label]')) item.setAttribute('aria-pressed',String(item.dataset.uploadLabel === uploadLabel)); }
@@ -275,6 +292,7 @@ $('next-page').onclick = () => { page++; data.pictures = null; generation++; ren
 $('select-page').onclick = () => { for (const row of data.pictures?.rows ?? []) selectionAdd(row.id); updateSelection(); };
 $('unselect-page').onclick = () => { for (const row of data.pictures?.rows ?? []) selected.delete(row.id); updateSelection(); };
 $('clear-selection').onclick = () => { selected.clear(); updateSelection(); };
+$('input-size').onchange = event => { inputSize = Number(event.target.value); };
 $('report-select').onchange = event => { reportJob = event.target.value; data.report = null; generation++; renderReport(); void load(); };
 $('refresh').onclick = () => { notice(''); void load(); };
 $('return-page').onclick = () => showSection(HOME_PAGE);
@@ -291,7 +309,6 @@ function openUpload(kind) {
 function addFiles(files) {
   if (uploadRunning) return;
   if (uploadRows.length + files.length > 100) { notice('一次最多选择 100 个文件，请分批上传。','error'); return; }
-  if (uploadRows.reduce((size,row) => size + row.file.size,0) + files.reduce((size,file) => size + file.size,0) > 128 * 1024 * 1024) { notice('每批原图总量最多 128 MiB，请分批上传。','error'); return; }
   for (const file of files) {
     if (!['image/jpeg','image/png','image/webp'].includes(file.type) || file.size > 64 * 1024 * 1024 || file.size === 0) { notice(`${file.name}：请选择不超过 64 MiB 的 JPEG、PNG 或静态 WebP。`,'error'); continue; }
     uploadRows.push({file,preview:URL.createObjectURL(file),phase:'waiting',percent:0,message:''});

@@ -106,7 +106,7 @@ class Service:
             log.close()
 
     def submit(
-        self, request_key: str, mode: str = "incremental", device: str = "cpu", character: str = "Bot自己"
+        self, request_key: str, mode: str = "incremental", device: str = "cpu", character: str = "Bot自己", input_size: int = 320
     ) -> dict:
         if mode not in {"fresh", "incremental"} or device not in {"cpu", "cuda"}:
             raise ValueError("无效训练模式或设备")
@@ -133,7 +133,7 @@ class Service:
                     raise ValueError("旧训练进程尚未退出，请稍后手动重试")
                 job = uuid.uuid4().hex
                 db.execute("INSERT OR REPLACE INTO settings VALUES ('character',?)", (character,))
-                snapshot = self.store.freeze(db, job, mode, device)
+                snapshot = self.store.freeze(db, job, mode, device, input_size)
                 directory = self.store.root / "jobs" / job
                 directory.mkdir()
                 atomic_json(directory / "snapshot.json", snapshot)
@@ -239,6 +239,7 @@ class Service:
                 device = snapshot.get("device")
             except (OSError, ValueError):
                 device = None
+            row["input_size"] = snapshot.get("input_size", 320) if device is not None else None
             row["device"] = device
             row["device_text"] = {"cpu": "CPU", "cuda": "CUDA"}.get(device, "设备未知")
             p = row["progress"]

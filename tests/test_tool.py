@@ -80,10 +80,10 @@ def test_default_config_has_required_version():
     plugin = module.create_plugin()
     PluginLoader._validate_sdk_plugin_contract("maibot.mai-recog-self", plugin)
     defaults = plugin.get_default_config()
-    assert extract_plugin_config_version(defaults) == "0.1.0"
+    assert extract_plugin_config_version(defaults) == "0.1.1"
     runner = object.__new__(PluginRunner)
     result = runner._normalize_plugin_config(plugin, {}, default_config=defaults, suppress_errors=False)
-    assert result.normalized_config["plugin"]["config_version"] == "0.1.0"
+    assert result.normalized_config["plugin"]["config_version"] == "0.1.1"
     assert result.normalized_config["plugin"]["enabled"] is True
     plugin.set_plugin_config(result.normalized_config)
     assert plugin.config.character_name == "Bot自己"
@@ -187,3 +187,26 @@ def test_automatic_media_disabled_or_untrained():
     plugin._plugin_config_instance = module.Config()
     plugin.service = SimpleNamespace(store=SimpleNamespace(setting=lambda key: ""), inference_enabled=True)
     assert asyncio.run(plugin.annotate_received_images({"raw_message": []})) == {"action": "continue"}
+
+
+def test_test_image_reidentify_and_expiry(tmp_path):
+    from recog.store import Store
+    from PIL import Image
+    import io
+    plugin = module.create_plugin()
+    calls = []
+    plugin.service = SimpleNamespace(store=Store(tmp_path), infer=lambda raw: calls.append(raw) or {"status":"ok","version":str(len(calls)),"score":0.8})
+    data = io.BytesIO()
+    Image.new("RGB",(20,30),"orange").save(data,format="PNG")
+    first = plugin.run_test(data.getvalue(), "a"*32)
+    second = asyncio.run(plugin.test_upload(result_id=first["id"]))
+    assert second["version"] == "2" and len(calls) == 2
+    assert len(asyncio.run(plugin.test_result())["rows"]) == 1
+    assert plugin.service.store.images()["total"] == 0
+    with pytest.raises(ValueError):
+        plugin.read_test_image("../escape")
+    for i in range(24):
+        plugin.run_test(data.getvalue(),f"{i:032x}")
+    assert not (tmp_path/"test-images"/(first["id"]+".image")).exists()
+    with pytest.raises(ValueError,match="过期"):
+        plugin.read_test_image(first["id"])

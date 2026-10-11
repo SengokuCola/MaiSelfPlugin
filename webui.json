@@ -1,8 +1,8 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "required_capabilities": [
     "custom_pages",
-    "file_upload"
+    "image_upload"
   ],
   "workspace_title": "自身角色识别",
   "pages": [
@@ -178,6 +178,15 @@
             "device": {
               "type": "string",
               "required": true
+            },
+            "input_size": {
+              "type": "integer",
+              "required": false,
+              "choices": [
+                224,
+                320,
+                448
+              ]
             }
           },
           "confirmation": "冻结当前标注和数据，开始新训练任务？"
@@ -233,6 +242,11 @@
             "upload_id": {
               "type": "string",
               "required": true
+            },
+            "result_id": {
+              "type": "string",
+              "required": false,
+              "max_length": 32
             }
           }
         },
@@ -470,6 +484,15 @@
             "device": {
               "type": "string",
               "required": true
+            },
+            "input_size": {
+              "type": "integer",
+              "required": false,
+              "choices": [
+                224,
+                320,
+                448
+              ]
             }
           },
           "confirmation": "冻结当前标注和数据，开始新训练任务？"
@@ -525,6 +548,11 @@
             "upload_id": {
               "type": "string",
               "required": true
+            },
+            "result_id": {
+              "type": "string",
+              "required": false,
+              "max_length": 32
             }
           }
         },
@@ -762,6 +790,15 @@
             "device": {
               "type": "string",
               "required": true
+            },
+            "input_size": {
+              "type": "integer",
+              "required": false,
+              "choices": [
+                224,
+                320,
+                448
+              ]
             }
           },
           "confirmation": "冻结当前标注和数据，开始新训练任务？"
@@ -817,6 +854,11 @@
             "upload_id": {
               "type": "string",
               "required": true
+            },
+            "result_id": {
+              "type": "string",
+              "required": false,
+              "max_length": 32
             }
           }
         },
@@ -1054,6 +1096,15 @@
             "device": {
               "type": "string",
               "required": true
+            },
+            "input_size": {
+              "type": "integer",
+              "required": false,
+              "choices": [
+                224,
+                320,
+                448
+              ]
             }
           },
           "confirmation": "冻结当前标注和数据，开始新训练任务？"
@@ -1109,6 +1160,11 @@
             "upload_id": {
               "type": "string",
               "required": true
+            },
+            "result_id": {
+              "type": "string",
+              "required": false,
+              "max_length": 32
             }
           }
         },
@@ -1346,6 +1402,15 @@
             "device": {
               "type": "string",
               "required": true
+            },
+            "input_size": {
+              "type": "integer",
+              "required": false,
+              "choices": [
+                224,
+                320,
+                448
+              ]
             }
           },
           "confirmation": "冻结当前标注和数据，开始新训练任务？"
@@ -1401,6 +1466,11 @@
             "upload_id": {
               "type": "string",
               "required": true
+            },
+            "result_id": {
+              "type": "string",
+              "required": false,
+              "max_length": 32
             }
           }
         },

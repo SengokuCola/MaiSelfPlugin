@@ -1,7 +1,7 @@
 """Admin-trained self-character identity recognition for MaiBot."""
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 import base64
 import json
 import uuid
@@ -16,13 +16,14 @@ from .recog.service import Service, offload
 
 class PluginSectionConfig(PluginConfigBase):
     enabled: bool = Field(default=True, description="是否启用自身角色识别插件")
-    config_version: str = Field(default="0.1.0", description="配置版本")
+    config_version: str = Field(default="0.1.1", description="配置版本")
 
 
 class Config(PluginConfigBase):
     plugin: PluginSectionConfig = Field(default_factory=PluginSectionConfig)
     character_name: str = Field(default="Bot自己", description="Bot自身角色名")
     worker_python: str = Field(default="", description="留空继承MaiBot Python并使用插件依赖覆盖层；可指定其他底层Python")
+    input_size: Literal[224, 320, 448] = Field(default=320, description="新训练任务的图片尺寸；已训练模型使用自己的尺寸")
     auto_recognize: bool = Field(default=True, description="自动识别收到的图片，阳性结果作为上下文提示")
 
 
@@ -171,7 +172,7 @@ class SelfRecognition(MaiBotPlugin):
         return await self.batch_images(image_ids, "remove")
 
     @API("self_training_submit", version="1")
-    async def submit(self, request_key: str, mode: str = "incremental", device: str = "cpu") -> dict:
+    async def submit(self, request_key: str, mode: str = "incremental", device: str = "cpu", input_size: int = 0) -> dict:
         from .recog.environment import status
 
         environment = await offload(status, self.service)
@@ -179,7 +180,7 @@ class SelfRecognition(MaiBotPlugin):
             return {"success": False, "error": "正在检测运行环境，请稍后再开始训练"}
         if not environment.get("installed") or device == "cuda" and not environment.get("cuda"):
             return {"success": False, "error": "所选设备不可用，请先检查运行环境或安装匹配的PyTorch"}
-        result = await self._action(self.service.submit, request_key, mode, device, self.config.character_name)
+        result = await self._action(self.service.submit, request_key, mode, device, self.config.character_name, input_size or self.config.input_size)
         if result.get("id") and await offload(self.service.store.setting, "form_request_key") == request_key:
             await offload(self.service.store.set_setting, "form_request_key", uuid.uuid4().hex)
         if result.get("state") in {"failed", "cancelled", "interrupted"}:
@@ -283,7 +284,7 @@ class SelfRecognition(MaiBotPlugin):
         if not key:
             key = uuid.uuid4().hex
             await offload(self.service.store.set_setting, "form_request_key", key)
-        return {"request_key": key, **await offload(self.service.store.training_readiness)}
+        return {"request_key": key, "input_size": self.config.input_size, **await offload(self.service.store.training_readiness)}
 
     def form_key(self):
         with self.service.store.db() as db:
@@ -361,6 +362,7 @@ class SelfRecognition(MaiBotPlugin):
                 name=time.strftime("模型 %m-%d %H:%M", time.localtime(r["created"])),
                 status="使用中" if r["id"] == active else "未启用",
                 can_activate=r["id"] != active,
+                input_size=m.get("input_size", 320),
             )
             for split in ("validation", "test"):
                 metric = m[split]
@@ -383,44 +385,65 @@ class SelfRecognition(MaiBotPlugin):
         return await self._action(self.service.rollback)
 
     @API("self_test_upload", version="1")
-    async def test_upload(self, upload_id: str) -> dict:
-        claimed = await self.ctx.webui.claim_upload(upload_id)
-        path = Path(claimed["path"])
-        try:
-            started = time.monotonic()
-            result = await offload(self.service.infer, await offload(path.read_bytes))
-            from .recog.images import thumbnail
+    async def test_upload(self, upload_id: str = "", result_id: str = "") -> dict:
+        if result_id:
+            raw = await offload(self.read_test_image, result_id)
+            result = await offload(self.run_test, raw, result_id)
+        else:
+            claimed = await self.ctx.webui.claim_upload(upload_id)
+            path = Path(claimed["path"])
+            try:
+                result = await offload(self.run_test, await offload(path.read_bytes), uuid.uuid4().hex)
+            finally:
+                await offload(path.unlink, missing_ok=True)
+        return result
 
-            result.update(thumbnail=await offload(thumbnail, path), elapsed=f"耗时 {time.monotonic() - started:.2f} 秒")
-            result["summary"] = (
-                f"{result.get('character', '')} · {result.get('judgment', '')} · 得分 {result.get('score', 0):.3f}（不是正确概率）"
-                if result.get("status") == "ok"
-                else f"识别未完成：{result.get('error') or result.get('status')}"
-            )
-            result["version_text"] = "模型版本：" + result.get("version", "无")[:8]
-            await offload(self.save_test_history, result)
-            await offload(self.service.store.set_setting, "last_test", json.dumps(result, ensure_ascii=False))
-            return result
-        finally:
-            await offload(path.unlink, missing_ok=True)
+    def read_test_image(self, result_id: str) -> bytes:
+        if len(result_id) != 32 or any(c not in "0123456789abcdef" for c in result_id):
+            raise ValueError("测试图片不存在")
+        history = json.loads(self.service.store.setting("test_history", "[]"))
+        if not any(r.get("id") == result_id for r in history):
+            raise ValueError("测试图片已过期")
+        path = self.service.store.root / "test-images" / (result_id + ".image")
+        if not path.is_file():
+            raise ValueError("测试图片已过期，请重新上传")
+        return path.read_bytes()
+
+    def run_test(self, raw: bytes, result_id: str) -> dict:
+        from .recog.images import thumbnail
+        started = time.monotonic()
+        result = self.service.infer(raw)
+        directory = self.service.store.root / "test-images"
+        directory.mkdir(exist_ok=True)
+        path = directory / (result_id + ".image")
+        path.write_bytes(raw)
+        result.update(id=result_id, thumbnail=thumbnail(path), elapsed=f"耗时 {time.monotonic() - started:.2f} 秒")
+        result["summary"] = (
+            f"{result.get('character', '')} · 得分 {result.get('score', 0):.3f}"
+            if result.get("status") == "ok" else f"识别未完成：{result.get('error') or result.get('status')}"
+        )
+        result["version_text"] = "模型版本：" + result.get("version", "无")[:8]
+        self.save_test_history(result)
+        self.service.store.set_setting("last_test", json.dumps(result, ensure_ascii=False))
+        return result
 
     @API("self_test_result", version="1")
     async def test_result(self) -> dict:
-        rows = json.loads(await offload(self.service.store.setting, "test_history", "[]"))
-        return {
-            "rows": rows,
-            "summary": "测试图片不加入训练库；显示最近24张，每张独立展示。模型得分不是校准后的正确概率。",
-        }
+        return {"rows": json.loads(await offload(self.service.store.setting, "test_history", "[]"))}
 
     def save_test_history(self, result):
-        # Serialize updates through SQLite so simultaneous tests cannot overwrite history.
+        # Serialize history changes and retain the files needed for re-recognition.
         with self.service.store.db() as db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute("SELECT value FROM settings WHERE key='test_history'").fetchone()
             history = json.loads(row[0]) if row else []
-            db.execute(
-                "INSERT OR REPLACE INTO settings VALUES ('test_history',?)", (json.dumps([result, *history][:24]),)
-            )
+            history = [r for r in history if not result.get("id") or r.get("id") != result["id"]]
+            combined = [result, *history]
+            db.execute("INSERT OR REPLACE INTO settings VALUES ('test_history',?)", (json.dumps(combined[:24]),))
+            for expired in combined[24:]:
+                image_id = expired.get("id", "")
+                if len(image_id) == 32 and all(c in "0123456789abcdef" for c in image_id):
+                    (self.service.store.root / "test-images" / (image_id + ".image")).unlink(missing_ok=True)
 
     @staticmethod
     def _tool_result(result: dict) -> dict:

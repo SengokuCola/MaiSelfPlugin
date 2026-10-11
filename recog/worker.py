@@ -56,7 +56,7 @@ def train_job(root: Path, job_id: str) -> None:
                     job_id,
                     job_id,
                     sha,
-                    json.dumps({"validation": report["selection"]["validation"], "test": report["test"]}),
+                    json.dumps({"validation": report["selection"]["validation"], "test": report["test"], "input_size": report["input_size"]}),
                     time.time(),
                 ),
             )
@@ -108,13 +108,14 @@ def serve(root: Path) -> None:
                     model = candidate
                     current = version
                 if request.get("operation") == "load":
-                    result = {"status": "ready", "version": current}
+                    result = {"status": "ready", "version": current, "input_size": model.input_size}
                 else:
                     score = infer(model, base64.b64decode(request["image"], validate=True))
                     result = {
                         "status": "ok",
                         "character": store.setting("character", "Bot自己"),
                         "version": current,
+                        "input_size": model.input_size,
                         "score": score,
                         "judgment": judgment(score),
                         "score_is_calibrated_probability": False,

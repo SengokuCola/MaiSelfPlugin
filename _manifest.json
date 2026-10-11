@@ -1,11 +1,11 @@
 {
   "manifest_version": 2,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "name": "MaiBot 自身角色识别",
   "description": "管理员标注、训练与版本管理；自动识别收到的图片并添加自身角色上下文提示。",
   "author": {
-    "name": "MaiBot开发团队",
-    "url": "https://github.com/MaiM-with-u"
+    "name": "SengokuCola",
+    "url": "https://github.com/SengokuCola"
   },
   "license": "GPL-3.0-or-later",
   "urls": {
@@ -45,5 +45,15 @@
       "zh-CN"
     ]
   },
-  "id": "maibot.mai-recog-self"
+  "id": "maibot.mai-recog-self",
+  "plugin_type": "media",
+  "changelog": "CHANGELOG.md",
+  "display": {
+    "icon": {
+      "type": "local",
+      "value": "assets/icon.svg",
+      "fallback": "scan-face",
+      "background": "#F7F1E4"
+    }
+  }
 }

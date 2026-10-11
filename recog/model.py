@@ -61,13 +61,22 @@ def fresh_model() -> nn.Module:
     model = models.mobilenet_v3_small(weights=None)
     model.load_state_dict(torch.load(BASE_FILE, map_location="cpu", weights_only=True))
     model.classifier[3] = nn.Linear(model.classifier[3].in_features, 2)
+    model.input_size = 320
     return model
 
 
 def loaded_model(path: Path) -> nn.Module:
     model = models.mobilenet_v3_small(weights=None)
     model.classifier[3] = nn.Linear(model.classifier[3].in_features, 2)
-    state = torch.load(path, map_location="cpu", weights_only=True)
+    artifact = torch.load(path, map_location="cpu", weights_only=True)
+    if "state_dict" in artifact:
+        state = artifact["state_dict"]
+        input_size = artifact["input_size"]
+        if type(input_size) is not int or input_size not in {224, 320, 448}:
+            raise ValueError("模型图片尺寸无效")
+    else:
+        state, input_size = artifact, 320
+    model.input_size = input_size
     if not state or any(not torch.isfinite(v).all() for v in state.values()):
         raise ValueError("模型包含非有限权重")
     model.load_state_dict(state, strict=True)
@@ -75,10 +84,12 @@ def loaded_model(path: Path) -> nn.Module:
 
 
 class Dataset(torch.utils.data.Dataset):
-    def __init__(self, root: Path, rows: list, augment: bool = False):
+    def __init__(self, root: Path, rows: list, augment: bool = False, input_size: int = 320, resize_first: bool = True):
         self.root = root
         self.rows = rows
         self.augment = augment
+        self.input_size = input_size
+        self.resize_first = resize_first
         self.jitter = transforms.ColorJitter(0.1, 0.1, 0.08, 0.02)
 
     def __len__(self):
@@ -87,16 +98,21 @@ class Dataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
         row = self.rows[index]
         image = decode((self.root / row["path"]).read_bytes())
+        # Legacy paused tasks retain their original augmentation order.
+        if self.resize_first:
+            image = whole_image(image, self.input_size)
         if self.augment:
             image = self.jitter(image)
-        return NORMALIZE(transforms.ToTensor()(whole_image(image))), int(row["label"] == "self")
+        if not self.resize_first:
+            image = whole_image(image, self.input_size)
+        return NORMALIZE(transforms.ToTensor()(image)), int(row["label"] == "self")
 
 
 def evaluate(model: nn.Module, root: Path, rows: list, device: str, batch: int) -> tuple:
     model.eval()
     labels = []
     scores = []
-    loader = torch.utils.data.DataLoader(Dataset(root, rows), batch_size=batch, shuffle=False, num_workers=0)
+    loader = torch.utils.data.DataLoader(Dataset(root, rows, input_size=model.input_size), batch_size=batch, shuffle=False, num_workers=0)
     with torch.inference_mode():
         for inputs, truth in loader:
             out = model(inputs.to(device)).float()
@@ -113,6 +129,9 @@ def evaluate(model: nn.Module, root: Path, rows: list, device: str, batch: int) 
 def train(root: Path, snapshot: dict, progress, cancelled, max_epochs: int | None = None, paused=None) -> dict:
     started = time.monotonic()
     device = snapshot["device"]
+    input_size = snapshot.get("input_size", 320)
+    if type(input_size) is not int or input_size not in {224, 320, 448}:
+        raise ValueError("图片尺寸无效")
     torch.set_num_threads(min(4, torch.get_num_threads()))
     if device == "cuda" and not torch.cuda.is_available():
         raise ValueError("CUDA不可用，请选择CPU")
@@ -125,6 +144,7 @@ def train(root: Path, snapshot: dict, progress, cancelled, max_epochs: int | Non
     ):
         raise ValueError("启用父模型SHA变化，拒绝增量训练")
     model = loaded_model(root / "models" / parent / "weights.pt") if parent else fresh_model()
+    model.input_size = input_size
     model = model.to(device)
     initial = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
     for parameter in model.parameters():
@@ -136,7 +156,7 @@ def train(root: Path, snapshot: dict, progress, cancelled, max_epochs: int | Non
         raise ValueError("冻结原图哈希变化")
     partitions = {s: [r for r in rows if r["split"] == s] for s in ("train", "val", "test")}
     targets = [sum(r["label"] == label for r in partitions["train"]) for label in ("other", "self")]
-    loss_fn = nn.CrossEntropyLoss(weight=torch.tensor([sum(targets) / (2 * n) for n in targets], device=device))
+    loss_fn = nn.CrossEntropyLoss(weight=torch.tensor([sum(targets) / (2 * n) if n else 0.0 for n in targets], device=device))
     incremental = snapshot["mode"] == "incremental"
     epochs = max_epochs or (10 if incremental else 15)
     job_dir = root / "jobs" / snapshot["job_id"]
@@ -233,7 +253,7 @@ def train(root: Path, snapshot: dict, progress, cancelled, max_epochs: int | Non
             raise TrainingPaused()
 
         # Explicit batch indices preserve ordering and augmentation RNG across restarts.
-        dataset = Dataset(root, partitions["train"], True)
+        dataset = Dataset(root, partitions["train"], True, input_size, snapshot.get("preprocessing") == "resize_before_augment")
         resume = None
         for step in range(offset, steps):
             if cancelled():
@@ -288,7 +308,7 @@ def train(root: Path, snapshot: dict, progress, cancelled, max_epochs: int | Non
         rank = (val["f1"], val["balanced_accuracy"], val["precision"], -epoch)
         if best is None or rank > best[0]:
             best = (rank, record, predictions)
-            torch.save({k: v.detach().cpu() for k, v in model.state_dict().items()}, job_dir / "selected.pt")
+            torch.save({"state_dict": {k: v.detach().cpu() for k, v in model.state_dict().items()}, "input_size": input_size}, job_dir / "selected.pt")
         if paused and paused():
             save_pause(steps, finished=True)
     selection = {
@@ -350,7 +370,7 @@ def train(root: Path, snapshot: dict, progress, cancelled, max_epochs: int | Non
         "metrics_recomputed": recomputed,
         "reload_close": reload_close,
         "selection_unchanged": selection_unchanged,
-        "full_train_replay": all(n == len(partitions["train"]) for n in coverage),
+        "training_coverage": all(n == len(partitions["train"]) for n in coverage),
     }
     audit["passed"] = all(audit.values())
     if not audit["passed"]:
@@ -372,12 +392,14 @@ def train(root: Path, snapshot: dict, progress, cancelled, max_epochs: int | Non
         "counts": {s: len(r) for s, r in partitions.items()},
         "snapshot_sha": digest(snapshot),
         "device": device,
+        "input_size": input_size,
+        "trained_image_ids": [r["id"] for r in partitions["train"]],
     }
 
 
 def infer(model: nn.Module, raw: bytes) -> float:
     image = decode(raw)
-    tensor = NORMALIZE(transforms.ToTensor()(whole_image(image))).unsqueeze(0)
+    tensor = NORMALIZE(transforms.ToTensor()(whole_image(image, model.input_size))).unsqueeze(0)
     with torch.inference_mode():
         score = model(tensor).float().softmax(-1)[0, 1].item()
     if not np.isfinite(score):

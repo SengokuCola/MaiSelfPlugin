@@ -200,6 +200,22 @@ class Store:
                 self._reconcile(db, group)
         return {"updated": len(rows), "operation": operation}
 
+    def trained_sources(self, db, version: str) -> list:
+        if not version:
+            return []
+        record = db.execute("SELECT job_id FROM models WHERE id=?", (version,)).fetchone()
+        if record is None:
+            raise ValueError("模型版本不存在")
+        snapshot = json.loads((self.root / "jobs" / record[0] / "snapshot.json").read_text("utf-8"))
+        return snapshot.get("trained_sources", [r for r in snapshot["images"] if r["split"] == "train"])
+
+    @staticmethod
+    def source_seen(row, sources) -> bool:
+        for source in reversed(sources):
+            if source["group_id"] == row["group_id"] or source["sha"] == row["sha"] or source["decoded"] == row["decoded"]:
+                return source["label"] == row["label"]
+        return False
+
     def images(self, page: int = 1, view: str = "all", job_id: str = "") -> dict:
         if page < 1 or view not in {"all", "eligible", "excluded", "unlabelled", "errors", "removed"}:
             raise ValueError("无效分页")
@@ -237,6 +253,7 @@ class Store:
             else:
                 where = "0"
         with self.db() as db:
+            sources = self.trained_sources(db, self.setting("active"))
             total = db.execute(f"SELECT COUNT(*) FROM images i WHERE {where}", parameters).fetchone()[0]
             page = min(page, max(1, (total + 23) // 24))
             rows = [dict(r) for r in db.execute(
@@ -248,6 +265,8 @@ class Store:
             reasons = {"solid": "纯色/近纯色", "duplicate": "同图变体，仅保留一个代表", "label_conflict": "同图身份标签冲突", "split_conflict": "连接了不同历史划分"}
             r["status"] = "已移出训练库" if r["removed"] else reasons.get(r["reason"], "跳过" if r["label"] == "skip" else "可用")
             r["label_text"] = {"self": "是自己", "other": "不是自己", "skip": "跳过"}.get(r["label"], "未标注")
+            r["trained"] = self.source_seen(r, sources)
+            r["training_text"] = "当前模型已训练" if r["trained"] else "验证集" if r["split"] == "val" else "测试集" if r["split"] == "test" else "待训练"
             prediction = predictions.get(r["id"])
             r["model_text"] = (f"模型：{'是自己' if prediction['predicted']=='self' else '不是自己'} · 得分 {prediction['score']:.3f} · 冻结真值：{'是自己' if prediction['label']=='self' else '不是自己'}" if prediction else "")
             gallery.append(
@@ -275,13 +294,21 @@ class Store:
                 "SELECT label,COUNT(DISTINCT group_id) AS count FROM images WHERE removed=0 AND reason='' AND label IN ('self','other') GROUP BY label"
             ):
                 counts[row["label"]] = row["count"]
+            active = self.setting("active")
+            sources = self.trained_sources(db, active)
+            candidates = db.execute("SELECT i.*,g.split FROM images i JOIN groups g ON g.id=i.group_id WHERE i.removed=0 AND i.reason='' AND i.label IN ('self','other') AND (g.split='train' OR g.split IS NULL)").fetchall()
+            pending = sum(not self.source_seen(r, sources) for r in candidates)
         return {
             "can_train": min(counts.values()) >= 20,
+            "has_model": bool(active),
+            "pending_count": pending,
             "summary": f"可训练独立图组：是Bot {counts['self']} / 不是Bot {counts['other']}。每类至少20组，重复变体只算一组。",
             "groups": counts,
         }
 
-    def freeze(self, db: sqlite3.Connection, job_id: str, mode: str, device: str) -> dict:
+    def freeze(self, db: sqlite3.Connection, job_id: str, mode: str, device: str, input_size: int = 320) -> dict:
+        if type(input_size) is not int or input_size not in {224, 320, 448}:
+            raise ValueError("图片尺寸必须为224、320或448")
         rows = [
             dict(r)
             for r in db.execute(
@@ -326,6 +353,13 @@ class Store:
             raise ValueError("当前启用模型的记录不存在")
         if mode == "incremental" and not parent:
             mode = "fresh"
+        inherited_sources = self.trained_sources(db, parent)
+        if parent:
+            rows = [r for r in rows if r["split"] != "train" or not self.source_seen(r, inherited_sources)]
+            if not any(r["split"] == "train" for r in rows):
+                raise ValueError("没有待训练图片，请新增图片、修改标签或选择从头训练")
+        learned = [r for r in rows if r["split"] == "train"]
+        trained_sources = [{k: r[k] for k in ("id", "label", "sha", "decoded", "group_id")} for r in [*inherited_sources, *learned]]
         held_truth = digest(sorted((r["id"], r["label"]) for r in rows if r["split"] != "train"))
         previous = db.execute(
             "SELECT snapshot_sha FROM jobs WHERE state='complete' ORDER BY created DESC LIMIT 1"
@@ -336,6 +370,10 @@ class Store:
             "job_id": job_id,
             "mode": mode,
             "device": device,
+            "input_size": input_size,
+            "preprocessing": "resize_before_augment",
+            "training_policy": "new_only" if parent else "all",
+            "trained_sources": trained_sources,
             "seed": 42,
             "parent": parent,
             "parent_sha": parent_record[0] if parent_record else "",
