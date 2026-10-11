@@ -234,6 +234,13 @@ class Service:
             except (OSError, ValueError):
                 # Windows readers can race an atomic replace; the next poll recovers.
                 row["progress"] = {"phase": row["state"]}
+            try:
+                snapshot = json.loads((path.parent / "snapshot.json").read_text("utf-8"))
+                device = snapshot.get("device")
+            except (OSError, ValueError):
+                device = None
+            row["device"] = device
+            row["device_text"] = {"cpu": "CPU", "cuda": "CUDA"}.get(device, "设备未知")
             p = row["progress"]
             labels = {
                 "queued": "排队中",
