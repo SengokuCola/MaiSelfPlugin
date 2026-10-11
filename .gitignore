@@ -10,3 +10,4 @@ config_back/
 data/
 dependencies/
 *.log
+logs/
